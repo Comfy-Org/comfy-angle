@@ -1,0 +1,42 @@
+# comfy-angle
+
+Redistributable [ANGLE](https://chromium.googlesource.com/angle/angle) libraries packaged as Python wheels, extracted from [Electron](https://www.electronjs.org/) releases.
+
+Provides `libEGL` and `libGLESv2` for Windows (x64), Linux (x64, arm64), and macOS (arm64).
+
+## Installation
+
+```bash
+pip install comfy-angle
+```
+
+## Usage
+
+```python
+import comfy_angle
+
+# Directory containing the shared libraries
+comfy_angle.get_lib_dir()
+
+# Full paths to individual libraries
+comfy_angle.get_egl_path()
+comfy_angle.get_glesv2_path()
+```
+
+## Building wheels from source
+
+```bash
+# Install JS dependencies for the download script
+cd scripts && npm install && cd ..
+
+# Download ANGLE libraries from an Electron release
+node scripts/download.js [electron-version]
+
+# Build platform-specific wheels
+pip install setuptools wheel build
+python scripts/build.py
+```
+
+## License
+
+The ANGLE libraries are licensed under the BSD 3-Clause license. Electron components are covered by the MIT license. See `electron-LICENSE` and `LICENSES.chromium.html` inside the wheel for full details.
