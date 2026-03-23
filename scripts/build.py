@@ -47,12 +47,19 @@ def build_wheel(platform_tag: str) -> Optional[Path]:
 
     print(f"  Building wheel for {platform_tag} ...")
 
+    # Clean stale build artifacts so setuptools doesn't carry over libs
+    # from previous platform iterations.
+    for d in [ROOT / "build", ROOT / "comfy_angle.egg-info"]:
+        if d.exists():
+            shutil.rmtree(d)
+
     # Populate comfy_angle/libs/ with this platform's binaries.
     if LIBS_DIR.exists():
         shutil.rmtree(LIBS_DIR)
     LIBS_DIR.mkdir()
     for lib_file in lib_files:
         shutil.copy2(lib_file, LIBS_DIR / lib_file.name)
+
 
     # Copy license files into the package directory.
     for name in LICENSE_FILES:
