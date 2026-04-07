@@ -87,7 +87,9 @@ function extractFromZip(zipPath, destDir, fileNames, renames = {}) {
 }
 
 async function main() {
-  const electronVersion = process.argv[2] || "41.0.3";
+  const versionFile = path.join(__dirname, "electron-version.txt");
+  const defaultVersion = fs.readFileSync(versionFile, "utf-8").trim();
+  const electronVersion = process.argv[2] || defaultVersion;
   const outBase = path.resolve(__dirname, "..", "platform_libs");
 
   console.log(`Downloading ANGLE libs from Electron v${electronVersion}\n`);
