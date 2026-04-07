@@ -2,11 +2,6 @@ name: Publish to TestPyPI
 
 on:
   workflow_dispatch:
-    inputs:
-      electron_version:
-        description: "Electron version to extract ANGLE libs from (leave empty to use scripts/electron-version.txt)"
-        required: false
-        default: ""
 
 permissions: {}
 
@@ -27,12 +22,7 @@ jobs:
         run: npm ci
 
       - name: Download ANGLE libraries
-        run: |
-          VERSION="${{ inputs.electron_version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION="$(cat scripts/electron-version.txt)"
-          fi
-          node scripts/download.js "$VERSION"
+        run: node scripts/download.js "$(cat scripts/electron-version.txt)"
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
