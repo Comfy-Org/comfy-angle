@@ -12,6 +12,7 @@ Wheels are written to dist/.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,28 @@ PLATFORM_TAGS = [
 ]
 
 LICENSE_FILES = ["electron-LICENSE", "LICENSES.chromium.html"]
+FORBIDDEN_LINUX_LIBRARIES = {
+    "libX11.so.6",
+    "libXext.so.6",
+    "libgbm.so.1",
+    "libwayland-client.so.0",
+    "libxcb.so.1",
+}
+
+
+def verify_linux_dependencies(library: Path) -> None:
+    result = subprocess.run(
+        ["readelf", "-d", library],
+        env={**os.environ, "LC_ALL": "C"},
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    needed = set(re.findall(r"\(NEEDED\).*\[(.+?)\]", result.stdout))
+    forbidden = needed & FORBIDDEN_LINUX_LIBRARIES
+    if forbidden:
+        names = ", ".join(sorted(forbidden))
+        raise RuntimeError(f"{library} depends on {names}")
 
 
 def build_wheel(platform_tag: str) -> Optional[Path]:
@@ -47,6 +70,10 @@ def build_wheel(platform_tag: str) -> Optional[Path]:
 
     print(f"  Building wheel for {platform_tag} ...")
 
+    if platform_tag.startswith("manylinux"):
+        for lib_file in lib_files:
+            verify_linux_dependencies(lib_file)
+
     # Clean stale build artifacts so setuptools doesn't carry over libs
     # from previous platform iterations.
     for d in [ROOT / "build", ROOT / "comfy_angle.egg-info"]:
@@ -59,7 +86,6 @@ def build_wheel(platform_tag: str) -> Optional[Path]:
     LIBS_DIR.mkdir()
     for lib_file in lib_files:
         shutil.copy2(lib_file, LIBS_DIR / lib_file.name)
-
 
     # Copy license files into the package directory.
     for name in LICENSE_FILES:
@@ -79,9 +105,12 @@ def build_wheel(platform_tag: str) -> Optional[Path]:
     try:
         subprocess.run(
             [
-                sys.executable, "-m", "build",
+                sys.executable,
+                "-m",
+                "build",
                 "--wheel",
-                "--outdir", str(DIST),
+                "--outdir",
+                str(DIST),
             ],
             cwd=str(ROOT),
             check=True,
@@ -128,7 +157,7 @@ def main():
 
     DIST.mkdir(exist_ok=True)
 
-    print(f"Building comfy-angle wheels\n")
+    print("Building comfy-angle wheels\n")
 
     try:
         built = []

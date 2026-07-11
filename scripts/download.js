@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Download Electron releases and extract only the ANGLE libraries for each platform.
+ * Download Electron releases and extract the ANGLE libraries used on Windows and macOS.
  *
  * Usage:
  *   npm install
@@ -14,23 +14,13 @@ const fs = require("fs");
 const path = require("path");
 const { pipeline } = require("stream/promises");
 
-// Map of our wheel platform tags to Electron download parameters and the
-// library filenames we need to extract.
+// Linux libraries are built from source by build_linux.py so they do not
+// inherit Electron's X11 dependencies.
 const PLATFORMS = {
   macosx_11_0_arm64: {
     electronPlatform: "darwin",
     electronArch: "arm64",
     libs: ["libEGL.dylib", "libGLESv2.dylib"],
-  },
-  manylinux_2_28_aarch64: {
-    electronPlatform: "linux",
-    electronArch: "arm64",
-    libs: ["libEGL.so", "libGLESv2.so"],
-  },
-  manylinux_2_28_x86_64: {
-    electronPlatform: "linux",
-    electronArch: "x64",
-    libs: ["libEGL.so", "libGLESv2.so"],
   },
   win_amd64: {
     electronPlatform: "win32",
@@ -96,7 +86,6 @@ async function main() {
 
   fs.mkdirSync(outBase, { recursive: true });
 
-  // De-duplicate downloads: darwin/arm64 is used for both macOS tags.
   // Cache maps "platform-arch" -> { libName: extractedPath }
   const downloadCache = {};
   let licensesExtracted = false;

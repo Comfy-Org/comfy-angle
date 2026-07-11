@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "Helper scripts for downloading ANGLE libraries from Electron",
+  "description": "Helper scripts for packaging ANGLE libraries",
   "scripts": {
     "download": "node download.js",
     "build": "python3 build.py"
