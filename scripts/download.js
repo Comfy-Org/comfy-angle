@@ -37,6 +37,11 @@ const PLATFORMS = {
     electronArch: "x64",
     libs: ["libEGL.dll", "libGLESv2.dll"],
   },
+  win_arm64: {
+    electronPlatform: "win32",
+    electronArch: "arm64",
+    libs: ["libEGL.dll", "libGLESv2.dll"],
+  },
 };
 
 // Files to extract from each zip: the ANGLE libs plus license files.

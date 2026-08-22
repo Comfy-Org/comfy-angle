@@ -2,7 +2,7 @@
 
 Redistributable [ANGLE](https://chromium.googlesource.com/angle/angle) libraries packaged as Python wheels, extracted from [Electron](https://www.electronjs.org/) releases.
 
-Provides `libEGL` and `libGLESv2` for Windows (x64), Linux (x64, arm64), and macOS (arm64).
+Provides `libEGL` and `libGLESv2` for Windows (x64, arm64), Linux (x64, arm64), and macOS (arm64).
 
 ## Installation
 
