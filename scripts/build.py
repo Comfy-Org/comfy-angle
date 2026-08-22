@@ -29,6 +29,7 @@ PLATFORM_TAGS = [
     "manylinux_2_28_aarch64",
     "manylinux_2_28_x86_64",
     "win_amd64",
+    "win_arm64",
 ]
 
 LICENSE_FILES = ["electron-LICENSE", "LICENSES.chromium.html"]
