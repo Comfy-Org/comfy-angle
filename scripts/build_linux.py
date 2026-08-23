@@ -66,6 +66,26 @@ def verify_dependencies(library: Path) -> None:
         raise RuntimeError(f"{library.name} still depends on {names}")
 
 
+def configure_native_arm64_gcc(
+    work_dir: Path, env: Dict[str, str]
+) -> Dict[str, str]:
+    """Expose the native compiler under ANGLE's ARM64 toolchain names."""
+    toolchain_dir = work_dir / "native-arm64-toolchain"
+    toolchain_dir.mkdir(parents=True, exist_ok=True)
+
+    for command in ("gcc", "g++", "ar", "readelf", "nm"):
+        executable = shutil.which(command, path=env["PATH"])
+        if executable is None:
+            raise RuntimeError(f"Required build tool is unavailable: {command}")
+        alias = toolchain_dir / f"aarch64-linux-gnu-{command}"
+        alias.unlink(missing_ok=True)
+        alias.symlink_to(executable)
+
+    configured = env.copy()
+    configured["PATH"] = str(toolchain_dir) + os.pathsep + configured["PATH"]
+    return configured
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--work-dir", type=Path, default=ROOT / ".angle-build")
@@ -117,34 +137,50 @@ def main() -> None:
     run(str(depot_tools / "ensure_bootstrap"), cwd=depot_tools, env=env)
     run("gclient", "sync", "--no-history", "--shallow", cwd=angle, env=env)
 
+    if machine == "aarch64":
+        env = configure_native_arm64_gcc(work_dir, env)
+
     out_dir = angle / "out" / "Release"
-    gn_args = " ".join(
-        [
-            "is_debug=false",
-            "is_component_build=false",
-            "dcheck_always_on=false",
-            "symbol_level=0",
-            "use_sysroot=false",
-            "use_ozone=false",
-            f'target_cpu="{target_cpu}"',
-            "angle_build_tests=false",
-            "angle_enable_gl=false",
-            "angle_enable_vulkan=true",
-            "angle_shared_libvulkan=false",
-            "angle_enable_swiftshader=false",
-            "angle_enable_null=false",
-            "angle_enable_wgpu=false",
-            "angle_use_x11=false",
-            "angle_use_wayland=false",
-            "angle_use_gbm=false",
-            "angle_use_vulkan_display=false",
-            'angle_vulkan_display_mode="headless"',
-            "angle_enable_vulkan_validation_layers=false",
-            "angle_enable_vulkan_api_dump_layer=false",
-            "angle_enable_overlay=false",
-            "angle_has_frame_capture=false",
-        ]
-    )
+    gn_args_list = [
+        "is_debug=false",
+        "is_component_build=false",
+        "dcheck_always_on=false",
+        "symbol_level=0",
+        "use_sysroot=false",
+        "use_ozone=false",
+        f'target_cpu="{target_cpu}"',
+        "angle_build_tests=false",
+        "angle_enable_gl=false",
+        "angle_enable_vulkan=true",
+        "angle_shared_libvulkan=false",
+        "angle_enable_swiftshader=false",
+        "angle_enable_null=false",
+        "angle_enable_wgpu=false",
+        "angle_use_x11=false",
+        "angle_use_wayland=false",
+        "angle_use_gbm=false",
+        "angle_use_vulkan_display=false",
+        'angle_vulkan_display_mode="headless"',
+        "angle_enable_vulkan_validation_layers=false",
+        "angle_enable_vulkan_api_dump_layer=false",
+        "angle_enable_overlay=false",
+        "angle_has_frame_capture=false",
+    ]
+    if machine == "aarch64":
+        # Chromium only publishes its Linux Clang package for x86-64. ANGLE's
+        # GCC ARM64 toolchain works natively once the expected prefixed command
+        # names above resolve to the container's compiler. The bundled libc++
+        # requires GCC 15, while the manylinux image provides GCC 14, so use
+        # the image's libstdc++ and tolerate upstream's Clang-specific warnings.
+        gn_args_list.extend(
+            [
+                "is_clang=false",
+                "treat_warnings_as_errors=false",
+                "use_custom_libcxx=false",
+                "use_custom_libcxx_for_host=false",
+            ]
+        )
+    gn_args = " ".join(gn_args_list)
     run("gn", "gen", str(out_dir), f"--args={gn_args}", cwd=angle, env=env)
     run(
         "autoninja",
