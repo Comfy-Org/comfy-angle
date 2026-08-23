@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 .eggs/
 build/
+.angle-build/
 *.whl
 comfy_angle/libs/
 comfy_angle/electron-LICENSE

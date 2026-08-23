@@ -1,4 +1,4 @@
-"""Redistributable Google ANGLE libraries extracted from Electron."""
+"""Redistributable Google ANGLE libraries."""
 
 import os
 import sys

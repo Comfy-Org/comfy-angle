@@ -29,11 +29,41 @@ jobs:
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: platform-libs
+          name: platform-libs-electron
+          path: platform_libs/
+
+  build-linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            image: quay.io/pypa/manylinux_2_28_x86_64@sha256:65140ef21cef92d0c13d001708afd7d304d7a154f7120d039df99dac708f3ffb
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            image: quay.io/pypa/manylinux_2_28_aarch64@sha256:360bf4ec4349372e9bcfb123bf11bcc4f085072bfa4f3b946d98f5a28f9c03b0
+            architecture: aarch64
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.image }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Build headless ANGLE libraries
+        run: |
+          export PATH="/opt/python/cp312-cp312/bin:$PATH"
+          python scripts/build_linux.py
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: platform-libs-linux-${{ matrix.architecture }}
           path: platform_libs/
 
   build:
-    needs: download
+    needs: [download, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,7 +78,8 @@ jobs:
 
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: platform-libs
+          pattern: platform-libs-*
+          merge-multiple: true
           path: platform_libs/
 
       - name: Install build tools
@@ -62,7 +93,9 @@ jobs:
           pip install auditwheel
           for whl in dist/*manylinux*.whl; do
             echo "=== Checking $whl ==="
-            auditwheel show "$whl"
+            report="$(auditwheel show "$whl")"
+            echo "$report"
+            grep -q 'following platform tag: "manylinux_2_28_' <<< "$report"
           done
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -70,8 +103,42 @@ jobs:
           name: wheels
           path: dist/*.whl
 
-  publish:
+  smoke-linux:
     needs: build
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+          - runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: wheels
+          path: dist/
+
+      - name: Load ANGLE without X11
+        run: |
+          if ldconfig -p | grep -Eq 'lib(X11|Xext|gbm|wayland|xcb)'; then
+            echo "The smoke-test image unexpectedly contains window-system libraries"
+            exit 1
+          fi
+          pip install --no-index --find-links=dist comfy-angle
+          python - <<'PY'
+          import ctypes
+          import comfy_angle
+
+          mode = ctypes.RTLD_GLOBAL
+          ctypes.CDLL(comfy_angle.get_egl_path(), mode=mode)
+          ctypes.CDLL(comfy_angle.get_glesv2_path(), mode=mode)
+          PY
+
+  publish:
+    needs: [build, smoke-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: read
